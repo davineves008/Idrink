@@ -1,6 +1,6 @@
-
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -10,82 +10,65 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface Bebida {
-  id: number;
-  nome: string;
-  descricao: string;
-  preco: number;
-  estoque: number;
-  imagem: any;
-  ativo: boolean;
+import { CATEGORIAS } from '../constants/categorias';
+import { getProdutos, Produto } from '../services/api';
+import { useCarrinho } from '../constants/contextCarrinho';
+
+// Imagens locais por nome do produto (enquanto a API não devolve imagemUrl).
+const imagemPadrao = require('../../assets/images/bebidas.jpg');
+
+const imagensLocais: Record<string, any> = {
+  'coca-cola': require('../../assets/images/Coca-cola.jpg'),
+  'guaraná antarctica': require('../../assets/images/Pepsi.jpg'),
+  'suco natural': require('../../assets/images/Tang.jpg'),
+};
+
+function obterImagem(produto: Produto) {
+  if (produto.imagemUrl) {
+    return { uri: produto.imagemUrl };
+  }
+  return imagensLocais[produto.nome.trim().toLowerCase()] ?? imagemPadrao;
 }
 
 export default function BebidasScreen() {
-  // Por enquanto os produtos estão fixos.
-  // Depois vamos substituir pela API do ASP.NET.
-  const bebidas: Bebida[] = [
-    {
-      id: 1,
-      nome: 'Coca-Cola',
-      descricao: 'Refrigerante Coca-Cola gelado.',
-      preco: 6.5,
-      estoque: 12,
-      imagem: require('../../assets/images/Coca-cola.jpg'),
-      ativo: true,
-    },
-    {
-      id: 2,
-      nome: 'Guaraná Antarctica',
-      descricao: 'Refrigerante Guaraná Antarctica.',
-      preco: 6.0,
-      estoque: 8,
-      imagem: require('../../assets/images/Pepsi.jpg'),
-      ativo: true,
-    },
-    {
-      id: 3,
-      nome: 'Suco Natural',
-      descricao: 'Suco natural preparado na hora.',
-      preco: 8.5,
-      estoque: 5,
-      imagem: require('../../assets/images/Tang.jpg'),
-      ativo: true,
-    },
-    {
-      id: 4,
-      nome: 'Água Mineral',
-      descricao: 'Água mineral sem gás.',
-      preco: 3.5,
-      estoque: 15,
-      imagem: require('../../assets/images/bebidas.jpg'),
-      ativo: true,
-    },
-    {
-      id: 5,
-      nome: 'Energético',
-      descricao: 'Energético para dar aquele gás.',
-      preco: 10.0,
-      estoque: 3,
-      imagem: require('../../assets/images/bebidas.jpg'),
-      ativo: true,
-    },
-    {
-      id: 6,
-      nome: 'Fanta Laranja',
-      descricao: 'Refrigerante Fanta sabor laranja.',
-      preco: 6.0,
-      estoque: 0,
-      imagem: require('../../assets/images/bebidas.jpg'),
-      ativo: false,
-    },
-  ];
+  const [bebidas, setBebidas] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const adicionarCarrinho = (bebida: Bebida) => {
-    console.log('Adicionar ao carrinho:', bebida.nome);
+  const { adicionar } = useCarrinho();
+  const [adicionadoId, setAdicionadoId] = useState<number | null>(null);
+
+  const carregarBebidas = useCallback(async () => {
+    setLoading(true);
+    setErro(null);
+
+    try {
+      const dados = await getProdutos(CATEGORIAS.BEBIDAS);
+      setBebidas(dados);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro desconhecido');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarBebidas();
+  }, [carregarBebidas]);
+
+  const adicionarCarrinho = (bebida: Produto) => {
+    adicionar({
+      id: bebida.id,
+      nome: bebida.nome,
+      preco: Number(bebida.preco),
+    });
+
+    setAdicionadoId(bebida.id);
+    setTimeout(() => setAdicionadoId(null), 1200);
   };
 
   const formatarPreco = (valor: number) => {
-    return valor.toLocaleString('pt-BR', {
+    return Number(valor).toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     });
@@ -143,122 +126,165 @@ export default function BebidasScreen() {
                 Nossas bebidas
               </Text>
 
-              <Text style={styles.sectionSubtitle}>
-                {bebidas.length} produtos disponíveis
-              </Text>
+              {!loading && !erro && (
+                <Text style={styles.sectionSubtitle}>
+                  {bebidas.length} produtos disponíveis
+                </Text>
+              )}
             </View>
           </View>
 
+          {/* CARREGANDO */}
+          {loading && (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator size="large" color="#ff7a00" />
+              <Text style={styles.stateText}>Carregando bebidas...</Text>
+            </View>
+          )}
+
+          {/* ERRO */}
+          {!loading && erro && (
+            <View style={styles.stateContainer}>
+              <Text style={styles.stateTitle}>
+                Não foi possível carregar as bebidas
+              </Text>
+
+              <Text style={styles.stateText}>{erro}</Text>
+
+              <TouchableOpacity
+                style={styles.retryButton}
+                activeOpacity={0.85}
+                onPress={carregarBebidas}
+              >
+                <Text style={styles.addButtonText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* LISTA VAZIA */}
+          {!loading && !erro && bebidas.length === 0 && (
+            <View style={styles.stateContainer}>
+              <Text style={styles.stateTitle}>Nenhuma bebida cadastrada</Text>
+              <Text style={styles.stateText}>
+                Volte mais tarde para ver as novidades.
+              </Text>
+            </View>
+          )}
+
           {/* PRODUTOS */}
-          <View style={styles.productsContainer}>
-            {bebidas.map((bebida) => (
-              <View key={bebida.id} style={styles.productCard}>
+          {!loading && !erro && (
+            <View style={styles.productsContainer}>
+              {bebidas.map((bebida) => (
+                <View key={bebida.id} style={styles.productCard}>
 
-                {/* IMAGEM */}
-                <View style={styles.productImageContainer}>
-                  <Image
-                    source={bebida.imagem}
-                    style={styles.productImage}
-                    resizeMode="contain"
-                  />
+                  {/* IMAGEM */}
+                  <View style={styles.productImageContainer}>
+                    <Image
+                      source={obterImagem(bebida)}
+                      style={styles.productImage}
+                      resizeMode="contain"
+                    />
 
-                  {!bebida.ativo && (
-                    <View style={styles.unavailableOverlay}>
-                      <Text style={styles.unavailableText}>
-                        Indisponível
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* CONTEÚDO */}
-                <View style={styles.productBody}>
-
-                  <Text
-                    style={styles.productName}
-                    numberOfLines={1}
-                  >
-                    {bebida.nome}
-                  </Text>
-
-                  <Text
-                    style={styles.productDescription}
-                    numberOfLines={2}
-                  >
-                    {bebida.descricao}
-                  </Text>
-
-                  {/* PREÇO */}
-                  <Text style={styles.price}>
-                    {formatarPreco(bebida.preco)}
-                  </Text>
-
-                  {/* ESTOQUE */}
-                  <View style={styles.stockRow}>
-                    <Text style={styles.stockLabel}>
-                      Estoque:
-                    </Text>
-
-                    <View
-                      style={[
-                        styles.stockBadge,
-                        bebida.estoque <= 5
-                          ? styles.stockLow
-                          : styles.stockOk,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.stockText,
-                          bebida.estoque <= 5
-                            ? styles.stockLowText
-                            : styles.stockOkText,
-                        ]}
-                      >
-                        {bebida.estoque}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* STATUS */}
-                  <View style={styles.statusContainer}>
-                    {bebida.ativo ? (
-                      <View style={styles.availableBadge}>
-                        <Text style={styles.availableText}>
-                          🟢 Disponível
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.unavailableBadge}>
-                        <Text style={styles.unavailableBadgeText}>
-                          🔴 Indisponível
+                    {!bebida.ativo && (
+                      <View style={styles.unavailableOverlay}>
+                        <Text style={styles.unavailableText}>
+                          Indisponível
                         </Text>
                       </View>
                     )}
                   </View>
 
-                  {/* BOTÃO */}
-                  {bebida.ativo ? (
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      activeOpacity={0.85}
-                      onPress={() => adicionarCarrinho(bebida)}
+                  {/* CONTEÚDO */}
+                  <View style={styles.productBody}>
+
+                    <Text
+                      style={styles.productName}
+                      numberOfLines={1}
                     >
-                      <Text style={styles.addButtonText}>
-                        🛒 Adicionar
+                      {bebida.nome}
+                    </Text>
+
+                    <Text
+                      style={styles.productDescription}
+                      numberOfLines={2}
+                    >
+                      {bebida.descricao}
+                    </Text>
+
+                    {/* PREÇO */}
+                    <Text style={styles.price}>
+                      {formatarPreco(bebida.preco)}
+                    </Text>
+
+                    {/* ESTOQUE */}
+                    <View style={styles.stockRow}>
+                      <Text style={styles.stockLabel}>
+                        Estoque:
                       </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.disabledButton}>
-                      <Text style={styles.disabledButtonText}>
-                        Indisponível
-                      </Text>
+
+                      <View
+                        style={[
+                          styles.stockBadge,
+                          bebida.estoque <= 5
+                            ? styles.stockLow
+                            : styles.stockOk,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.stockText,
+                            bebida.estoque <= 5
+                              ? styles.stockLowText
+                              : styles.stockOkText,
+                          ]}
+                        >
+                          {bebida.estoque}
+                        </Text>
+                      </View>
                     </View>
-                  )}
+
+                    {/* STATUS */}
+                    <View style={styles.statusContainer}>
+                      {bebida.ativo ? (
+                        <View style={styles.availableBadge}>
+                          <Text style={styles.availableText}>
+                            🟢 Disponível
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.unavailableBadge}>
+                          <Text style={styles.unavailableBadgeText}>
+                            🔴 Indisponível
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* BOTÃO */}
+                    {bebida.ativo ? (
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        activeOpacity={0.85}
+                        onPress={() => adicionarCarrinho(bebida)}
+                      >
+                        <Text style={styles.addButtonText}>
+                          {adicionadoId === bebida.id
+                            ? '✓ Adicionado'
+                            : '🛒 Adicionar'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.disabledButton}>
+                        <Text style={styles.disabledButtonText}>
+                          Indisponível
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
 
           {/* RODAPÉ */}
           <View style={styles.footer}>
@@ -400,6 +426,39 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginTop: 3,
+  },
+
+  /* ESTADOS (carregando, erro, vazio) */
+
+  stateContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+  },
+
+  stateTitle: {
+    color: '#222',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+
+  stateText: {
+    color: '#777',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  retryButton: {
+    height: 48,
+    paddingHorizontal: 28,
+    backgroundColor: '#ff7a00',
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 18,
   },
 
   /* PRODUTOS */
@@ -627,4 +686,3 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 });
-

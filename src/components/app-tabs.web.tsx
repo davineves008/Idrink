@@ -1,4 +1,3 @@
-
 import {
   Tabs,
   TabList,
@@ -97,6 +96,13 @@ export default function AppTabs() {
               <Text style={styles.label}>Carrinho</Text>
             </TabButton>
           </TabTrigger>
+
+          {/* CADASTRO (registrado, mas escondido do menu) */}
+          <TabTrigger
+            name="cadastro"
+            href="/cadastro"
+            style={{ display: 'none' }}
+          />
 
         </CustomTabList>
       </TabList>
@@ -296,4 +302,3 @@ const styles = StyleSheet.create({
   },
 
 });
-

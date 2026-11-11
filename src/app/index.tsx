@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Alert,
@@ -12,36 +11,44 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator } from 'react-native';
+import { login } from '../services/auth';
 
 export default function HomeScreen() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const router = useRouter();
+  const [carregando, setCarregando] = useState(false);
 
-  const handleLogin = () => {
-    if (!email || !senha) {
-      Alert.alert(
-        'Atenção',
-        'Preencha o e-mail e a senha.'
-      );
+  const handleLogin = async () => {
+    if (!email.trim() || !senha) {
+      Alert.alert('Atenção', 'Preencha o e-mail e a senha.');
       return;
     }
 
-    // Por enquanto apenas teste.
-    // Depois vamos conectar com o seu ASP.NET Core.
-    console.log('E-mail:', email);
-    console.log('Senha:', senha);
+    try {
+      setCarregando(true);
 
-    Alert.alert(
-      'Login',
-      'Login realizado com sucesso!'
-    );
+      const usuario = await login(email.trim(), senha);
+
+      Alert.alert('Bem-vindo!', `Olá, ${usuario.nome}!`);
+
+      setSenha('');
+
+      router.replace('/explore');
+    } catch (error: any) {
+      Alert.alert(
+        'Erro no login',
+        error.message || 'Não foi possível realizar o login.'
+      );
+    } finally {
+      setCarregando(false);
+    }
   };
 
   const handleCadastro = () => {
-    Alert.alert(
-      'Cadastro',
-      'Tela de cadastro será criada em breve.'
-    );
+    router.push('/cadastro');
   };
 
   const handleEsqueciSenha = () => {
@@ -67,32 +74,24 @@ export default function HomeScreen() {
 
               {/* LOGO */}
               <View style={styles.logoArea}>
-
                 <View style={styles.logoIcon}>
                   <Text style={styles.logoEmoji}>🍔</Text>
                   <Text style={styles.logoEmoji}>🥤</Text>
                 </View>
 
-                <Text style={styles.logoTitle}>
-                  IDrink
-                </Text>
+                <Text style={styles.logoTitle}>IDrink</Text>
 
                 <Text style={styles.logoSubtitle}>
                   Pedidos rápidos e práticos
                 </Text>
-
               </View>
 
               {/* E-MAIL */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  E-mail
-                </Text>
+                <Text style={styles.label}>E-mail</Text>
 
                 <View style={styles.inputWrapper}>
-                  <Text style={styles.inputIcon}>
-                    ✉️
-                  </Text>
+                  <Text style={styles.inputIcon}>✉️</Text>
 
                   <TextInput
                     style={styles.input}
@@ -109,25 +108,16 @@ export default function HomeScreen() {
 
               {/* SENHA */}
               <View style={styles.inputGroup}>
-
                 <View style={styles.passwordHeader}>
-                  <Text style={styles.label}>
-                    Senha
-                  </Text>
+                  <Text style={styles.label}>Senha</Text>
 
-                  <TouchableOpacity
-                    onPress={handleEsqueciSenha}
-                  >
-                    <Text style={styles.forgotLink}>
-                      Esqueceu a senha?
-                    </Text>
+                  <TouchableOpacity onPress={handleEsqueciSenha}>
+                    <Text style={styles.forgotLink}>Esqueceu a senha?</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.inputWrapper}>
-                  <Text style={styles.inputIcon}>
-                    🔒
-                  </Text>
+                  <Text style={styles.inputIcon}>🔒</Text>
 
                   <TextInput
                     style={styles.input}
@@ -138,35 +128,31 @@ export default function HomeScreen() {
                     onChangeText={setSenha}
                   />
                 </View>
-
               </View>
 
               {/* BOTÃO ENTRAR */}
               <TouchableOpacity
-                style={styles.loginButton}
+                style={[styles.loginButton, carregando && { opacity: 0.7 }]}
                 activeOpacity={0.8}
                 onPress={handleLogin}
+                disabled={carregando}
               >
-                <Text style={styles.loginButtonText}>
-                  Entrar
-                </Text>
+                {carregando ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Entrar</Text>
+                )}
               </TouchableOpacity>
 
               {/* CADASTRO */}
               <View style={styles.footer}>
-
                 <Text style={styles.footerText}>
                   Ainda não possui uma conta?
                 </Text>
 
-                <TouchableOpacity
-                  onPress={handleCadastro}
-                >
-                  <Text style={styles.createAccount}>
-                    Criar conta
-                  </Text>
+                <TouchableOpacity onPress={handleCadastro}>
+                  <Text style={styles.createAccount}>Criar conta</Text>
                 </TouchableOpacity>
-
               </View>
 
             </View>
