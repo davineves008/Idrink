@@ -10,14 +10,14 @@
     "ios": {
       "icon": "./assets/expo.icon"
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#ff7a00",
-        "foregroundImage": "./assets/images/android-icon-foreground.png"
-      },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.davi005.Idrink"
-    },
+   "android": {
+  "adaptiveIcon": {
+    "backgroundColor": "#ff7a00",
+    "foregroundImage": "./assets/images/adaptative-icon.png"
+  },
+  "predictiveBackGestureEnabled": false,
+  "package": "com.davi005.Idrink"
+},
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
